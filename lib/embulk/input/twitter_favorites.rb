@@ -73,8 +73,9 @@ module Embulk
           max_id = tweets.last.id
           tweets = @client.favorites(@screen_name, max_id: max_id - 1)
         end
-      rescue => e
-        p e
+      rescue Twitter::Error::TooManyRequests => e
+        rate_limit = e.rate_limit
+        puts "rate limit: limit: #{rate_limit.limit}, remaining: #{rate_limit.remaining}, reset_at: #{rate_limit.reset_at}"
       ensure
         page_builder.finish
         task_report = {last_max_id: max_id}

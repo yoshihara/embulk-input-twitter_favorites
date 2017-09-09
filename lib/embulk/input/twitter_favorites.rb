@@ -15,7 +15,11 @@ module Embulk
         }
 
         columns = [
-          Column.new(0, "tweet",         :json),
+          Column.new(0, "screen_name", :string),
+          Column.new(1, "id", :string),
+          Column.new(2, "text", :string),
+          Column.new(3, "creator_screen_name", :string),
+          Column.new(4, "created_at", :string),
         ]
 
         resume(task, columns, 1, &control)
@@ -60,15 +64,15 @@ module Embulk
         tweets = @client.favorites(@screen_name)
         while !tweets.empty? do
           tweets.each do |tweet|
-            json = {
-              screen_name: @screen_name,
-              id: tweet.id,
-              text: tweet.text,
-              creator_screen_name: tweet.user.screen_name,
-              created_at: tweet.created_at,
-            }.to_json
-
-            page_builder.add([json])
+            page_builder.add(
+              [
+                @screen_name,
+                "#{tweet.id}",
+                tweet.text,
+                tweet.user.screen_name,
+                tweet.created_at,
+              ]
+            )
           end
           max_id = tweets.last.id
           Embulk.logger.info("favorite tweets are loaded until: #{max_id}")

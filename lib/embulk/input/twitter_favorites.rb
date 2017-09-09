@@ -61,7 +61,7 @@ module Embulk
 
       def run
         max_id = nil
-        tweets = @client.favorites(@screen_name)
+        tweets = @client.favorites(@screen_name, count: 1000)
         while !tweets.empty? do
           tweets.each do |tweet|
             page_builder.add(
@@ -76,7 +76,7 @@ module Embulk
           end
           max_id = tweets.last.id
           Embulk.logger.info("favorite tweets are loaded until: #{max_id}")
-          tweets = @client.favorites(@screen_name, max_id: max_id - 1)
+          tweets = @client.favorites(@screen_name, max_id: max_id - 1, count: 1000)
         end
       rescue Twitter::Error::TooManyRequests => e
         rate_limit = e.rate_limit

@@ -12,6 +12,7 @@ module Embulk
           "consumer_secret"  => config.param("consumer_secret", :string),
           "access_token"        => config.param("access_token", :string),
           "access_token_secret" => config.param("access_token_secret", :string),
+          "last_max_id" => config.param("last_max_id", :integer, default: nil)
         }
 
         columns = [
@@ -29,6 +30,10 @@ module Embulk
         task_reports = yield(task, columns, count)
 
         next_config_diff = {}
+
+        max_ids = task_reports.map { |task_report| task_report["last_max_id"].to_i }
+        max_id = max_ids.max
+        next_config_diff["last_max_id"] = max_id if max_id.nonzero?
         return next_config_diff
       end
 
@@ -50,6 +55,7 @@ module Embulk
         consumer_secret  = task["consumer_secret"]
         access_token        = task["access_token"]
         access_token_secret = task["access_token_secret"]
+        @max_id = task["last_max_id"]
 
         @client = Twitter::REST::Client.new do |config|
           config.consumer_key        = consumer_key
@@ -60,8 +66,10 @@ module Embulk
       end
 
       def run
-        max_id = nil
-        tweets = @client.favorites(@screen_name, count: 1000)
+        params = {count: 1000}
+        params[:max_id] = @max_id.to_i if @max_id
+
+        tweets = @client.favorites(@screen_name, params)
         while !tweets.empty? do
           tweets.each do |tweet|
             page_builder.add(
@@ -75,15 +83,16 @@ module Embulk
             )
           end
           max_id = tweets.last.id
+          params[:max_id] = max_id - 1
           Embulk.logger.info("favorite tweets are loaded until: #{max_id}")
-          tweets = @client.favorites(@screen_name, max_id: max_id - 1, count: 1000)
+          tweets = @client.favorites(@screen_name, params)
         end
       rescue Twitter::Error::TooManyRequests => e
         rate_limit = e.rate_limit
         Embulk.logger.info("rate limit: limit: #{rate_limit.limit}, remaining: #{rate_limit.remaining}, reset_at: #{rate_limit.reset_at}")
       ensure
         page_builder.finish
-        task_report = {last_max_id: max_id}
+        task_report = {"last_max_id" => max_id}
         return task_report
       end
     end

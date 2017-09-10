@@ -1,27 +1,33 @@
 # Twitter Favorites input plugin for Embulk
 
-TODO: Write short description here and embulk-input-twitter_favorites.gemspec file.
+embulk-input-twitter_favorites is the Embulk input plugin for favorites tweet in Twitter.
 
 ## Overview
 
 * **Plugin type**: input
-* **Resume supported**: yes
-* **Cleanup supported**: yes
+* **Resume supported**: no
+* **Cleanup supported**: no
 * **Guess supported**: no
 
 ## Configuration
 
-- **option1**: description (integer, required)
-- **option2**: description (string, default: `"myvalue"`)
-- **option3**: description (string, default: `null`)
+- **screen_name**: target screen_name (string, required)
+- **consumer_key**: comsumer key of Twitter app (string, required)
+- **consumer_secret**: comsumer secret of Twitter app (string, required)
+- **access_token**: access token of Twitter app (string, required)
+- **access_token_secret**: access token secret of Twitter app (string, required)
+- **last_max_id**: tweet id to fetch (This plugin fetches favorited tweets until this) (string, optional)
 
 ## Example
 
 ```yaml
 in:
   type: twitter_favorites
-  option1: example1
-  option2: example2
+  screen_name: 'screen_name'
+  consumer_key: 'CONSUMER_KEY'
+  consumer_secret: 'CONSUMER_SECRET'
+  access_token: 'ACCESS_TOKEN'
+  access_token_secret: 'ACCESS_TOKEN_SECRET'
 ```
 
 

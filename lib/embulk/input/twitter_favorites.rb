@@ -21,6 +21,7 @@ module Embulk
           Column.new(2, "text", :string),
           Column.new(3, "creator_screen_name", :string),
           Column.new(4, "created_at", :string),
+          Column.new(5, "url", :string),
         ]
 
         resume(task, columns, 1, &control)
@@ -79,6 +80,7 @@ module Embulk
                 tweet.text,
                 tweet.user.screen_name,
                 tweet.created_at,
+                tweet.url.to_s,
               ]
             )
           end

@@ -92,6 +92,9 @@ module Embulk
       rescue Twitter::Error::TooManyRequests => e
         rate_limit = e.rate_limit
         Embulk.logger.info("rate limit: limit: #{rate_limit.limit}, remaining: #{rate_limit.remaining}, reset_at: #{rate_limit.reset_at}")
+      rescue => e
+        Embulk.logger.error(e.message)
+        raise e
       ensure
         page_builder.finish
         task_report = {"last_max_id" => max_id}

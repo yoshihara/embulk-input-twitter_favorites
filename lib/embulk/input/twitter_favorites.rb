@@ -12,7 +12,6 @@ module Embulk
           "consumer_secret"  => config.param("consumer_secret", :string),
           "access_token"        => config.param("access_token", :string),
           "access_token_secret" => config.param("access_token_secret", :string),
-          "last_max_id" => config.param("last_max_id", :integer, default: nil)
         }
 
         columns = [
@@ -32,9 +31,6 @@ module Embulk
 
         next_config_diff = {}
 
-        max_ids = task_reports.map { |task_report| task_report["last_max_id"].to_i }
-        max_id = max_ids.max
-        next_config_diff["last_max_id"] = max_id if max_id.nonzero?
         return next_config_diff
       end
 
@@ -56,7 +52,6 @@ module Embulk
         consumer_secret  = task["consumer_secret"]
         access_token        = task["access_token"]
         access_token_secret = task["access_token_secret"]
-        @max_id = task["last_max_id"]
 
         @client = Twitter::REST::Client.new do |config|
           config.consumer_key        = consumer_key
@@ -68,7 +63,6 @@ module Embulk
 
       def run
         params = {count: 1000}
-        params[:max_id] = @max_id.to_i if @max_id
 
         tweets = @client.favorites(@screen_name, params)
         while !tweets.empty? do
@@ -85,7 +79,6 @@ module Embulk
             )
           end
           max_id = tweets.last.id
-          params[:max_id] = max_id - 1
           Embulk.logger.info("favorite tweets are loaded until: #{max_id}")
           tweets = @client.favorites(@screen_name, params)
         end
@@ -97,7 +90,7 @@ module Embulk
         raise e
       ensure
         page_builder.finish
-        task_report = {"last_max_id" => max_id}
+        task_report = {}
         return task_report
       end
     end

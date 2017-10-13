@@ -16,6 +16,7 @@ embulk-input-twitter_favorites is the Embulk input plugin for favorites tweet in
 - **consumer_secret**: comsumer secret of Twitter app (string, required)
 - **access_token**: access token of Twitter app (string, required)
 - **access_token_secret**: access token secret of Twitter app (string, required)
+- **last_max_id**: tweet id to fetch (This plugin fetches favorited tweets until this) (string, optional)
 
 ## Example
 

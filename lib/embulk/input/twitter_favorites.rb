@@ -70,7 +70,7 @@ module Embulk
         params = {count: 1000}
         params[:max_id] = @max_id.to_i if @max_id
 
-        tweets = @client.favorites(@screen_name, params)
+        tweets = @client.favorites(@screen_name, params).sort { |t| t.created_at.to_i }
         while !tweets.empty? do
           tweets.each do |tweet|
             page_builder.add(

@@ -12,7 +12,8 @@ module Embulk
           "consumer_secret"  => config.param("consumer_secret", :string),
           "access_token"        => config.param("access_token", :string),
           "access_token_secret" => config.param("access_token_secret", :string),
-          "last_max_id" => config.param("last_max_id", :integer, default: nil)
+          "last_max_id"   => config.param("last_max_id", :integer, default: nil),
+          "last_since_id" => config.param("last_since_id", :integer, default: nil),
         }
 
         columns = [
@@ -33,8 +34,13 @@ module Embulk
         next_config_diff = {}
 
         max_ids = task_reports.map { |task_report| task_report["last_max_id"].to_i }
-        max_id = max_ids.max
+        since_ids = task_reports.map { |task_report| task_report["last_since_id"].to_i }
+        max_id = max_ids.min
+        since_id = since_ids.max
+
         next_config_diff["last_max_id"] = max_id if max_id.nonzero?
+        next_config_diff["last_since_id"] = since_id if since_id.nonzero?
+
         return next_config_diff
       end
 
@@ -67,10 +73,18 @@ module Embulk
       end
 
       def run
-        params = {count: 1000}
+        params = {count: 100}
+        current_max_id = nil
+        current_since_id = nil
+
         params[:max_id] = @max_id.to_i if @max_id
 
+        # TODO: もろもろ共通化
         tweets = @client.favorites(@screen_name, params).sort { |t| t.created_at.to_i }
+
+        # NOTE: 次回最新から取るための値を入れておく
+        current_since_id = tweets.first.id unless tweets.empty?
+
         while !tweets.empty? do
           tweets.each do |tweet|
             page_builder.add(
@@ -84,11 +98,39 @@ module Embulk
               ]
             )
           end
-          max_id = tweets.last.id
-          params[:max_id] = max_id - 1
-          Embulk.logger.info("favorite tweets are loaded until: #{max_id}")
-          tweets = @client.favorites(@screen_name, params)
+
+          current_max_id = tweets.last.id - 1
+          params[:max_id] = current_max_id
+          Embulk.logger.info("favorite tweets are loaded until: #{current_max_id}")
+          tweets = @client.favorites(@screen_name, params).sort { |t| t.created_at.to_i }
         end
+
+        # since_idは指定があるときのみ使う
+        if @since_id
+          params[:since_id] = @since_id.to_i
+
+          tweets = @client.favorites(@screen_name, params).sort { |t| t.created_at.to_i }
+          while !tweets.empty? do
+            tweets.each do |tweet|
+              page_builder.add(
+                [
+                  @screen_name,
+                  "#{tweet.id}",
+                  tweet.text,
+                  tweet.user.screen_name,
+                  tweet.created_at,
+                  tweet.url.to_s,
+                ]
+              )
+            end
+
+            current_since_id = tweets.first.id + 1
+            params[:since_id] = current_since_id
+            Embulk.logger.info("favorite tweets are loaded since: #{current_since_id}")
+            tweets = @client.favorites(@screen_name, params).sort { |t| t.created_at.to_i }
+          end
+        end
+
       rescue Twitter::Error::TooManyRequests => e
         rate_limit = e.rate_limit
         Embulk.logger.info("rate limit: limit: #{rate_limit.limit}, remaining: #{rate_limit.remaining}, reset_at: #{rate_limit.reset_at}")
@@ -97,7 +139,11 @@ module Embulk
         raise e
       ensure
         page_builder.finish
-        task_report = {"last_max_id" => max_id}
+
+        task_report = {}
+        task_report["last_max_id"] = current_max_id if current_max_id
+        task_report["last_since_id"] = current_since_id if current_since_id
+
         return task_report
       end
     end
